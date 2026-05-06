@@ -173,3 +173,150 @@ def MagXY(S):
     mag_squared = (sum_cos**2 + sum_sin**2) / (N**2)
     
     return mag_squared
+
+def CvXY(Energy, Temperature):
+    """
+    Calculates the heat capacity (Cv) as the numerical derivative of energy 
+    with respect to temperature. Corresponds to Task 2.3.
+    
+    Args:
+        Energy (np.ndarray or list): Array of average energies of length numPoints.
+        Temperature (np.ndarray or list): Array of temperatures of length numPoints.
+        
+    Returns:
+        np.ndarray: Array of heat capacities of length (numPoints - 1).
+    """
+    # Convert inputs to numpy arrays to ensure vectorized operations
+    E_array = np.array(Energy)
+    T_array = np.array(Temperature)
+    
+    # Calculate the discrete differences: dE = E_{i+1} - E_i and dT = T_{i+1} - T_i
+    dE = np.diff(E_array)
+    dT = np.diff(T_array)
+    
+    # Heat capacity is the ratio of the differences (the numerical derivative)
+    Cv = dE / dT
+    
+    return Cv
+
+
+def CorrXY(S):
+    """
+    Calculates the spatial correlation function C(r) for distances r = 1 to L/2.
+    Corresponds to Task 2.4.
+    
+    Args:
+        S (np.ndarray): The L x L matrix containing spin angles.
+        
+    Returns:
+        np.ndarray: A 1D array of length L/2 containing the correlation C(r) 
+                    for each distance r.
+    """
+    L = S.shape[0]
+    max_r = L // 2
+    
+    # Initialize the correlation array
+    C_r = np.zeros(max_r)
+    
+    # Loop over all possible distances from 1 to L/2
+    for r in range(1, max_r + 1):
+        # Shift the lattice by distance r along the x-axis and y-axis
+        shifted_x = np.roll(S, shift=r, axis=1)
+        shifted_y = np.roll(S, shift=r, axis=0)
+        
+        # Calculate the correlation (cosine of the angle difference)
+        corr_x = np.cos(S - shifted_x)
+        corr_y = np.cos(S - shifted_y)
+        
+        # Calculate the mean correlation across all N spins for both directions
+        # and average them to get a generalized isotropic correlation for distance r.
+        C_r[r - 1] = (np.mean(corr_x) + np.mean(corr_y)) / 2.0
+        
+    return C_r
+
+def VortPlotXY(S, V, title="Vortices"):
+    """
+    Plots the spin configuration and the corresponding vortices.
+    Corresponds to Task 3.2.
+    
+    Args:
+        S (np.ndarray): Spin configurations.
+        V (np.ndarray): Vorticity matrix.
+        title (str): Title for the plot.
+    """
+    plt.figure(figsize=(8, 8))
+    
+    # 1. Plot the background vorticity map
+    # We use the 'coolwarm' colormap: 0 is neutral, positive is red, negative is blue.
+    plt.imshow(V, cmap='coolwarm', vmin=-2*np.pi, vmax=2*np.pi, origin='lower')
+    cbar = plt.colorbar(fraction=0.046, pad=0.04)
+    cbar.set_label('Vorticity')
+    
+    # 2. Plot the spin arrows
+    L = S.shape[0]
+    X, Y = np.meshgrid(np.arange(L), np.arange(L))
+    U = np.cos(S)
+    W = np.sin(S)
+    
+    # 'quiver' plots the arrows. We use 'mid' pivot to center them on the lattice points.
+    plt.quiver(X, Y, U, W, color='black', pivot='mid', scale=L*1.2)
+    
+    plt.title(title, fontsize=14)
+    plt.xticks([])
+    plt.yticks([])
+
+
+def wrap_angle(d_theta):
+    """
+    Wraps an angle difference to the range [-pi, pi].
+    This ensures that the difference between 359 degrees and 1 degree
+    is considered as -2 degrees, not 358 degrees.
+    """
+    return (d_theta + np.pi) % (2 * np.pi) - np.pi
+
+def VortXY(S):
+    """
+    Identifies vortices in the XY model configuration.
+    Corresponds to Task 3.1.
+    
+    Args:
+        S (np.ndarray): The L x L matrix containing spin angles.
+        
+    Returns:
+        tuple: (V, NumVort)
+            - V (np.ndarray): L x L matrix of vorticities.
+            - NumVort (float): Total number of vortices in the lattice.
+    """
+    # 1. Define the 4 corners of each plaquette using vectorized shifts.
+    # We treat S[i,j] as the Bottom-Left (BL) corner.
+    BL = S
+    BR = np.roll(S, shift=-1, axis=1)          # Bottom-Right (shifted left)
+    TR = np.roll(BR, shift=-1, axis=0)         # Top-Right (shifted up from BR)
+    TL = np.roll(S, shift=-1, axis=0)          # Top-Left (shifted up from BL)
+    
+    # 2. Calculate the phase differences along a counter-clockwise path:
+    # BL -> BR -> TR -> TL -> BL
+    d1 = BR - BL  # Bottom edge (rightwards)
+    d2 = TR - BR  # Right edge (upwards)
+    d3 = TL - TR  # Top edge (leftwards)
+    d4 = BL - TL  # Left edge (downwards)
+    
+    # 3. Wrap all differences to the [-pi, pi] interval
+    d1_wrapped = wrap_angle(d1)
+    d2_wrapped = wrap_angle(d2)
+    d3_wrapped = wrap_angle(d3)
+    d4_wrapped = wrap_angle(d4)
+    
+    # 4. Sum the wrapped differences to get the vorticity of each plaquette
+    V = d1_wrapped + d2_wrapped + d3_wrapped + d4_wrapped
+    
+    # Clean up microscopic floating-point errors (e.g., setting 1e-15 to 0.0)
+    V[np.abs(V) < 1e-5] = 0.0
+    
+    # 5. Calculate the total number of vortices.
+    # Note: Each vortex contributes exactly 2*pi or -2*pi to V.
+    # The document mentions dividing by 2, which is likely a typo for 2*pi,
+    # as mathematically the sum of |V| yields 2*pi per vortex.
+    NumVort = np.sum(np.abs(V)) / (2 * np.pi)
+    
+    return V, NumVort

@@ -34,3 +34,6 @@ def run_metropolis_test(L=10, n_theta=8):
     else:
         print("Validation Result: FAILURE. Constraints violated during Metropolis steps.\n")
         return False
+
+if __name__ == "__main__":
+    run_metropolis_test()

@@ -21,3 +21,6 @@ def run_plot_test(L=20, n_theta=16):
     
     print("Validation Result: Plotting executed successfully.\n")
     return True
+
+if __name__ == "__main__":
+    run_plot_test()

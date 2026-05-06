@@ -29,3 +29,6 @@ def run_initialization_test(L=4, n_theta=8):
     else:
         print("Validation Result: FAILURE. Invalid spin orientations detected.")
         return False
+
+if __name__ == "__main__":
+    run_initialization_test()
