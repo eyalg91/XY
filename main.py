@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 # Ensure root directory is in the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from xy_model import init_spins, MetropolisXY, PlotXY, EnergyXY, MagXY, CvXY, CorrXY
+# Updated imports to include vortex functions
+from xy_model import (init_spins, MetropolisXY, PlotXY, EnergyXY, 
+                      MagXY, CvXY, CorrXY, VortXY, VortPlotXY)
 
 def simulate_thermal_states():
     """
@@ -130,7 +132,45 @@ def run_thermodynamic_simulation():
     
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
+
+def visualize_vortices():
+    """
+    TASK 3.3: Analyzes and visualizes vortices at thermodynamic extremes.
+    """
+    L = 64
+    n_theta = 16
+    J = 1.0
+    numIters = 10**6
+
+    print(f"\n--- Starting Task 3.3: Vortex Analysis (L={L}) ---")
     
+    # Initial lattice
+    initial_lattice = init_spins(L, n_theta)
+
+    # 1. High Temperature Analysis
+    T_high = 10.0
+    beta_high = 1.0 / T_high
+    print(f"Thermalizing at High Temp (T={T_high})...")
+    lattice_high = MetropolisXY(initial_lattice, n_theta, beta_high, J, numIters)
+    
+    V_high, NumVort_high = VortXY(lattice_high)
+    print(f"[High T] Found {NumVort_high:.0f} vortices.")
+    print(f"[High T] Global sum of vorticity: {np.sum(V_high):.5f} (Target: ~0)")
+    VortPlotXY(lattice_high, V_high, title=f"Vortices at High Temp (T={T_high})")
+
+    # 2. Low Temperature Analysis
+    T_low = 0.02
+    beta_low = 1.0 / T_low
+    print(f"\nThermalizing at Low Temp (T={T_low})...")
+    lattice_low = MetropolisXY(initial_lattice, n_theta, beta_low, J, numIters)
+    
+    V_low, NumVort_low = VortXY(lattice_low)
+    print(f"[Low T] Found {NumVort_low:.0f} vortices.")
+    print(f"[Low T] Global sum of vorticity: {np.sum(V_low):.5f} (Target: ~0)")
+    VortPlotXY(lattice_low, V_low, title=f"Vortices at Low Temp (T={T_low})")
+
+    print("\nTask 3.3 complete. Rendering plots...")
+    plt.show()
 
 def main():
     """
@@ -141,11 +181,12 @@ def main():
     print("=========================================")
     print("1: Run Task 1.4 (Phase Extremes)")
     print("2: Run Task 2.5 (Thermodynamics)")
-    print("3: Run Both Tasks")
+    print("3: Run Both Tasks (1.4 & 2.5)")
+    print("4: Run Task 3.3 (Vortex Visualization)")
     print("0: Exit")
     print("=========================================")
     
-    choice = input("Enter choice (0/1/2/3): ")
+    choice = input("Enter choice (0/1/2/3/4): ")
     
     if choice == '1':
         simulate_thermal_states()
@@ -154,6 +195,8 @@ def main():
     elif choice == '3':
         simulate_thermal_states()
         run_thermodynamic_simulation()
+    elif choice == '4':
+        visualize_vortices()
     elif choice == '0':
         sys.exit()
     else:
