@@ -238,32 +238,59 @@ def VortPlotXY(S, V, title="Vortices"):
     """
     Plots the spin configuration and the corresponding vortices.
     Corresponds to Task 3.2.
-    
-    Args:
-        S (np.ndarray): Spin configurations.
-        V (np.ndarray): Vorticity matrix.
-        title (str): Title for the plot.
     """
     plt.figure(figsize=(8, 8))
+    L = S.shape[0]
     
     # 1. Plot the background vorticity map
-    # We use the 'coolwarm' colormap: 0 is neutral, positive is red, negative is blue.
-    plt.imshow(V, cmap='coolwarm', vmin=-2*np.pi, vmax=2*np.pi, origin='lower')
+    # By using extent=[0, L, 0, L], the colored boxes are defined strictly 
+    # between integer coordinates (e.g., a box from x=0 to x=1, y=0 to y=1).
+    plt.imshow(V, cmap='coolwarm', vmin=-2*np.pi, vmax=2*np.pi, origin='lower', extent=[0, L, 0, L])
     cbar = plt.colorbar(fraction=0.046, pad=0.04)
     cbar.set_label('Vorticity')
     
     # 2. Plot the spin arrows
-    L = S.shape[0]
+    # We place the arrows EXACTLY on the integer coordinates (corners of the boxes).
     X, Y = np.meshgrid(np.arange(L), np.arange(L))
     U = np.cos(S)
     W = np.sin(S)
     
-    # 'quiver' plots the arrows. We use 'mid' pivot to center them on the lattice points.
+    # quiver pivots at the 'tail' or 'mid' of the exact integer coordinate
     plt.quiver(X, Y, U, W, color='black', pivot='mid', scale=L*1.2)
     
     plt.title(title, fontsize=14)
+    plt.xlim(-0.5, L-0.5)
+    plt.ylim(-0.5, L-0.5)
     plt.xticks([])
     plt.yticks([])
+
+def VortPlotXY_ax(S, V, ax, title="Vortices"):
+    """
+    Plots the spin configuration on a specific axis with HSV colors,
+    arrows for spins, and highlights vortices with circles.
+    """
+    L = S.shape[0]
+    
+    # 1. Background: Spin Angles (HSV) - exactly like PlotXY
+    im = ax.imshow(S, cmap='hsv', vmin=0, vmax=2*np.pi, origin='lower')
+    
+    # 2. Arrows (Quiver) - Restored to match PlotXY exactly!
+    X, Y = np.meshgrid(np.arange(L), np.arange(L))
+    U, W = np.cos(S), np.sin(S)
+    ax.quiver(X, Y, U, W, color='black', pivot='mid', angles='xy', scale_units='xy', scale=1)
+    
+    # 3. Highlight Vortices with Circles
+    # V is calculated on plaquettes, so the vortex center is at (x+0.5, y+0.5)
+    v_y, v_x = np.where(V > 0.1) # Positive vortices
+    ax.scatter(v_x + 0.5, v_y + 0.5, s=120, facecolors='none', edgecolors='white', linewidths=2, label='Vortex (+)')
+    
+    av_y, av_x = np.where(V < -0.1) # Negative anti-vortices
+    ax.scatter(av_x + 0.5, av_y + 0.5, s=120, facecolors='none', edgecolors='black', linewidths=2, label='Anti-Vortex (-)')
+    
+    ax.set_title(title, fontsize=14)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    return im
 
 
 def wrap_angle(d_theta):
@@ -320,3 +347,90 @@ def VortXY(S):
     NumVort = np.sum(np.abs(V)) / (2 * np.pi)
     
     return V, NumVort
+
+
+def VectorizedMetropolisXY(S, n_theta, beta, J, sweeps):
+    """
+    High-Performance Vectorized Metropolis (Checkerboard).
+    'sweeps' represents the number of full lattice updates.
+    """
+    L = S.shape[0]
+    black_mask = ((np.arange(L)[:, None] + np.arange(L)) % 2 == 0)
+    red_mask = ~black_mask
+    
+    S_current = S.copy()
+    
+    for _ in range(sweeps):
+        for mask in [black_mask, red_mask]:
+            # Propose strictly valid discrete angles
+            random_indices = np.random.randint(0, n_theta, size=(L, L))
+            S_new = random_indices * (2 * np.pi / n_theta)
+            
+            up = np.roll(S_current, shift=1, axis=0)
+            down = np.roll(S_current, shift=-1, axis=0)
+            left = np.roll(S_current, shift=1, axis=1)
+            right = np.roll(S_current, shift=-1, axis=1)
+            
+            E_new = -J * (np.cos(S_new - up) + np.cos(S_new - down) + 
+                          np.cos(S_new - left) + np.cos(S_new - right))
+            
+            E_old = -J * (np.cos(S_current - up) + np.cos(S_current - down) + 
+                          np.cos(S_current - left) + np.cos(S_current - right))
+            
+            dE = E_new - E_old
+            
+            # Acceptance probability
+            accept = np.random.rand(L, L) < np.exp(-beta * dE)
+            update_condition = accept & mask
+            S_current = np.where(update_condition, S_new, S_current)
+            
+    return S_current
+
+def WolffXY(S, n_theta, beta, J, num_clusters):
+    """
+    Discrete Wolff Cluster Algorithm for 2D XY Model.
+    Mathematically corrected for exact reflection symmetry and detailed balance.
+    """
+    L = S.shape[0]
+    S_new = S.copy()
+    
+    for _ in range(num_clusters):
+        # 1. Choose a valid discrete reflection NORMAL angle (psi)
+        k = np.random.randint(0, 2 * n_theta)
+        psi = k * (np.pi / n_theta)
+        
+        i, j = np.random.randint(0, L, size=2)
+        
+        in_cluster = np.zeros((L, L), dtype=bool)
+        in_cluster[i, j] = True
+        stack = [(i, j)]
+        
+        while stack:
+            curr_i, curr_j = stack.pop()
+            
+            # Projection onto the reflection NORMAL (Corrected Math!)
+            proj_curr = np.cos(S_new[curr_i, curr_j] - psi)
+            
+            neighbors = [
+                ((curr_i + 1) % L, curr_j), ((curr_i - 1) % L, curr_j),
+                (curr_i, (curr_j + 1) % L), (curr_i, (curr_j - 1) % L)
+            ]
+            
+            for ni, nj in neighbors:
+                if not in_cluster[ni, nj]:
+                    proj_neighbor = np.cos(S_new[ni, nj] - psi)
+                    dot_product = proj_curr * proj_neighbor
+                    
+                    if dot_product > 0:
+                        # Wolff probability based on normal projection
+                        p_add = 1.0 - np.exp(-2.0 * beta * J * dot_product)
+                        if np.random.rand() < p_add:
+                            in_cluster[ni, nj] = True
+                            stack.append((ni, nj))
+                            
+        # 2. Reflect the cluster: theta' = 2*psi + pi - theta
+        S_new[in_cluster] = 2 * psi + np.pi - S_new[in_cluster]
+        
+    # Snap back to grid to prevent floating point drift
+    S_new = np.round(S_new / (2 * np.pi / n_theta)) * (2 * np.pi / n_theta)
+    return S_new % (2 * np.pi)
