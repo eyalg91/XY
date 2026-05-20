@@ -337,7 +337,7 @@ def run_fast_thermodynamics():
 def run_wolff_thermodynamics():
     """
     BONUS TASK: Perfect Hybrid Thermodynamics (Checkerboard + Wolff).
-    Includes physical Annealing to guarantee global energy minimum.
+    Includes physical Annealing, 3-state visualization, and 3-temp correlation.
     """
     L = 64
     n_theta = 16
@@ -351,7 +351,6 @@ def run_wolff_thermodynamics():
     
     # --- PHASE 1: ANNEALING (Cooling down properly) ---
     print("Annealing to ground state to prevent spin-glass frustration...")
-    # Gradually cool from T=2.0 down to T=0.02
     anneal_temps = np.linspace(2.0, 0.02, 10)
     for T_ann in anneal_temps:
         beta_ann = 1.0 / T_ann
@@ -363,8 +362,13 @@ def run_wolff_thermodynamics():
     
     # --- PHASE 2: MEASUREMENT (Heating up) ---
     T_array = np.linspace(0.02, 2.0, numPoints)
+    mid_index = 7  # T_array[7] is approximately 0.75
+    
     E_avg_list, M_avg_list = [], []
-    C_r_low, C_r_high = None, None
+    
+    # Variables to store snapshots for the 3 specific temperatures
+    C_r_low, C_r_mid, C_r_high = None, None, None
+    lattice_low, lattice_mid, lattice_high = None, None, None
     
     print("Heating Loop running...")
     for i, T in enumerate(T_array):
@@ -383,10 +387,16 @@ def run_wolff_thermodynamics():
         E_avg_list.append(E_accum / 100.0)
         M_avg_list.append(M_accum / 100.0)
         
+        # Capture Correlation and Grid Snapshots at the 3 specific points
         if i == 0:
             C_r_low = CorrXY(lattice)
+            lattice_low = lattice.copy()
+        elif i == mid_index:
+            C_r_mid = CorrXY(lattice)
+            lattice_mid = lattice.copy()
         elif i == numPoints - 1:
             C_r_high = CorrXY(lattice)
+            lattice_high = lattice.copy()
             
     end_time = time.time()
     total_time = end_time - start_time
@@ -398,9 +408,29 @@ def run_wolff_thermodynamics():
     
     print(f"\nPerfect Hybrid Simulation completed in {total_time:.2f} seconds.")
     
-    # --- PLOTTING ---
-    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle(f"HYBRID WOLFF Thermodynamics (Time: {total_time:.2f}s)", fontsize=16)
+    # --- PLOTTING PHASE ---
+    
+    # Figure 1: The 3 Spin Configurations with Vortices (using VortPlotXY_ax)
+    print("Generating Visualizations...")
+    vis_temps = [T_array[0], T_array[mid_index], T_array[-1]]
+    vis_lattices = [lattice_low, lattice_mid, lattice_high]
+    titles = [f"Low Temp (T={vis_temps[0]:.2f})\nPerfect Order", 
+              f"Mid Temp (T={vis_temps[1]:.2f})\nBound Pairs Emerging", 
+              f"High Temp (T={vis_temps[2]:.2f})\nFree Vortex Plasma"]
+    
+    fig_vis, axes_vis = plt.subplots(1, 3, figsize=(18, 6))
+    fig_vis.suptitle("Wolff Algorithm: Spin Configurations & Vortices", fontsize=18)
+    
+    for ax, temp_lat, title in zip(axes_vis, vis_lattices, titles):
+        V, NumVort = VortXY(temp_lat)
+        im = VortPlotXY_ax(temp_lat, V, ax, title=f"{title}\nVortices: {NumVort:.0f}")
+        
+    cbar = fig_vis.colorbar(im, ax=axes_vis.ravel().tolist(), fraction=0.015, pad=0.04)
+    cbar.set_label('Spin Angle (Radians)')
+    
+    # Figure 2: The Thermodynamic 2x2 Grid
+    fig_thermo, axs = plt.subplots(2, 2, figsize=(14, 10))
+    fig_thermo.suptitle(f"HYBRID WOLFF Thermodynamics (Time: {total_time:.2f}s)", fontsize=16)
     
     axs[0, 0].plot(T_array, E_avg_array, 'o-', color='blue')
     axs[0, 0].set(title='Average Energy vs Temp', xlabel='T', ylabel='<E>/N')
@@ -414,14 +444,18 @@ def run_wolff_thermodynamics():
     axs[1, 0].set(title='Heat Capacity vs Temp', xlabel='T', ylabel='C_v')
     axs[1, 0].grid(True)
     
+    # Plotting Correlation with all 3 temperatures
     r_values = np.arange(1, len(C_r_low) + 1)
     axs[1, 1].plot(r_values, C_r_low, 'o-', label=f'T={T_array[0]:.2f}', color='cyan')
+    axs[1, 1].plot(r_values, C_r_mid, '^-', label=f'T={T_array[mid_index]:.2f}', color='orange')
     axs[1, 1].plot(r_values, C_r_high, 's-', label=f'T={T_array[-1]:.2f}', color='magenta')
     axs[1, 1].set(title='Spatial Correlation C(r)', xlabel='Distance (r)', ylabel='C(r)')
     axs[1, 1].legend()
     axs[1, 1].grid(True)
     
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    # Display both figures simultaneously
     plt.show()
 
 def main():
