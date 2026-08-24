@@ -7,9 +7,24 @@ import time
 # Ensure root directory is in the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from xy_model import (init_spins, MetropolisXY, PlotXY, EnergyXY, 
-                      MagXY, CvXY, CorrXY, VortXY, VortPlotXY, 
+from xy_model import (init_spins, MetropolisXY, PlotXY, EnergyXY,
+                      MagXY, CvXY, CorrXY, VortXY, VortPlotXY,
                       VortPlotXY_ax, VectorizedMetropolisXY, WolffXY)
+
+PLOTS_DIR = "PLOTS"
+SAVE_PLOTS = False  # When True (during "Run All"), plots are saved to PLOTS_DIR instead of shown.
+
+def finish_plot(figs_with_names):
+    """Saves figures to PLOTS_DIR (high-res PNG) if SAVE_PLOTS is on, otherwise shows them as before."""
+    if SAVE_PLOTS:
+        os.makedirs(PLOTS_DIR, exist_ok=True)
+        for fig, name in figs_with_names:
+            path = os.path.join(PLOTS_DIR, f"{name}.png")
+            fig.savefig(path, dpi=300, bbox_inches='tight')
+            plt.close(fig)
+        print(f"Saved {len(figs_with_names)} plot(s) to '{PLOTS_DIR}/'")
+    else:
+        plt.show()
 
 def simulate_thermal_states():
     """TASK 1.4: Visualizing high and low temperature states."""
@@ -26,16 +41,16 @@ def simulate_thermal_states():
     T_high = 10.0
     print(f"Running High Temp (T={T_high})...")
     lattice_high = MetropolisXY(initial_lattice, n_theta, 1.0/T_high, J, numIters)
-    PlotXY(lattice_high, title=f"High Temp Disordered State (T={T_high})")
+    fig_high = PlotXY(lattice_high, title=f"High Temp Disordered State (T={T_high})")
 
     T_low = 0.02
     print(f"Running Low Temp (T={T_low})...")
     lattice_low = MetropolisXY(initial_lattice, n_theta, 1.0/T_low, J, numIters)
-    PlotXY(lattice_low, title=f"Low Temp Quasi-Ordered State (T={T_low})")
+    fig_low = PlotXY(lattice_low, title=f"Low Temp Quasi-Ordered State (T={T_low})")
 
     end_time = time.time()
     print(f"\nTask 1.4 completed in {end_time - start_time:.2f} seconds.")
-    plt.show()
+    finish_plot([(fig_high, "Task1.4_HighTemp_T10.0"), (fig_low, "Task1.4_LowTemp_T0.02")])
 
 def run_thermodynamic_simulation():
     """TASK 2.5: Full thermodynamic simulation. Quenches directly to T=0.02."""
@@ -97,7 +112,7 @@ def run_thermodynamic_simulation():
     axs[1, 1].legend()
     axs[1, 1].grid(True)
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    finish_plot([(fig, "Task2.5_Thermodynamics")])
 
 def visualize_vortices():
     """TASK 3.3: Analyzes and visualizes vortices at three temperatures."""
@@ -126,7 +141,7 @@ def visualize_vortices():
     cbar = fig.colorbar(im, ax=axes.ravel().tolist(), fraction=0.015, pad=0.04)
     cbar.set_label('Spin Angle (Radians)')
     print(f"\nTask 3.3 completed in {time.time() - start_time:.2f} seconds.")
-    plt.show()
+    finish_plot([(fig, "Task3.3_VortexEvolution")])
 
 def simulate_vortex_density():
     """TASK 3.4: Calculates and plots the vortex density."""
@@ -158,7 +173,7 @@ def simulate_vortex_density():
         density_list.append((vort_accum / 100.0) / N)
         print(" Done.")
         
-    plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 6))
     plt.semilogy(1.0/T_array, np.array(density_list), 'o-', color='purple')
     plt.title('Task 3.4: Vortex Density vs 1 / T')
     plt.xlabel('Inverse Temperature (1 / k_B T)')
@@ -167,7 +182,7 @@ def simulate_vortex_density():
     plt.gca().invert_xaxis()
     plt.tight_layout()
     print(f"\nTask 3.4 completed in {time.time() - start_time:.2f} seconds.")
-    plt.show()
+    finish_plot([(fig, "Task3.4_VortexDensity")])
 
 def run_fast_thermodynamics():
     """BONUS 1: Fast Vectorized Thermodynamics."""
@@ -227,9 +242,9 @@ def run_fast_thermodynamics():
     axs[1, 1].set(title='Spatial Correlation C(r)', xlabel='Distance (r)', ylabel='C(r)')
     axs[1, 1].legend()
     axs[1, 1].grid(True)
-    
+
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    finish_plot([(fig, "Bonus1_FastThermodynamics")])
 
 def clean_correlation_array(c_array, threshold=1e-3):
     """Utility to cleanly cut off noisy exponential drops."""
@@ -368,8 +383,12 @@ def run_wolff_thermodynamics():
     plt.gca().invert_xaxis()
     plt.grid(True, which="both", ls="--")
     plt.tight_layout()
-    
-    plt.show()
+
+    finish_plot([
+        (fig_vis, "Bonus2_WolffConfigurations"),
+        (fig_th, "Bonus2_WolffThermodynamics"),
+        (fig_vort, "Bonus2_WolffVortexDensity"),
+    ])
 
 def run_large_scale_demo():
     """BONUS 3: Large-Scale Lattice Thermodynamics & Visualization (L=256).
@@ -488,7 +507,28 @@ def run_large_scale_demo():
     plt.grid(True, which="both", ls="--")
     plt.tight_layout()
 
-    plt.show()
+    finish_plot([
+        (fig_vis, "Bonus3_LargeScaleConfigurations"),
+        (fig_th, "Bonus3_LargeScaleThermodynamics"),
+        (fig_vort, "Bonus3_LargeScaleVortexDensity"),
+    ])
+
+def run_all_tasks():
+    """Runs options 1, 2, 4, 5, 6, 7, 8 sequentially (option 3 is skipped since it
+    just re-runs 1 and 2). Plots are saved to PLOTS_DIR instead of being displayed."""
+    global SAVE_PLOTS
+    SAVE_PLOTS = True
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    try:
+        simulate_thermal_states()
+        run_thermodynamic_simulation()
+        visualize_vortices()
+        simulate_vortex_density()
+        run_fast_thermodynamics()
+        run_wolff_thermodynamics()
+        run_large_scale_demo()
+    finally:
+        SAVE_PLOTS = False
 
 def main():
     print("=========================================")
@@ -502,11 +542,12 @@ def main():
     print("6: Run BONUS 1 (Fast Vectorized Thermodynamics)")
     print("7: Run BONUS 2 (Wolff Cluster Thermodynamics)")
     print("8: Run BONUS 3 (Large Scale 256x256 Demo)")
+    print("9: Run All (1,2,4,5,6,7,8 - saves plots to PLOTS/ folder)")
     print("0: Exit")
     print("=========================================")
-    
-    choice = input("Enter choice (0/1/2/3/4/5/6/7/8): ")
-    
+
+    choice = input("Enter choice (0/1/2/3/4/5/6/7/8/9): ")
+
     if choice == '1': simulate_thermal_states()
     elif choice == '2': run_thermodynamic_simulation()
     elif choice == '3': simulate_thermal_states(); run_thermodynamic_simulation()
@@ -515,6 +556,7 @@ def main():
     elif choice == '6': run_fast_thermodynamics()
     elif choice == '7': run_wolff_thermodynamics()
     elif choice == '8': run_large_scale_demo()
+    elif choice == '9': run_all_tasks()
     elif choice == '0': sys.exit()
     else: print("Invalid choice.")
 
