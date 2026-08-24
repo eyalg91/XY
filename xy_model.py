@@ -52,7 +52,7 @@ def PlotXY(S, title="XY Model Configuration"):
     cbar.set_label('Spin Angle (Radians)')
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title)
+    # No on-figure title: single-panel figures are captioned externally (e.g. in a report).
     return fig
 
 def EnergyXY(S, J):
@@ -150,7 +150,7 @@ def VortPlotXY_ax(S, V, ax, title="Vortices", show_vortices=True, show_arrows=Tr
         av_y, av_x = np.where(V < -0.1)
         ax.scatter(av_x + 0.5, av_y + 0.5, s=120, facecolors='none', edgecolors='black', linewidths=2)
         
-    ax.set_title(title, fontsize=14)
+    ax.set_title(title)
     ax.set_xticks([])
     ax.set_yticks([])
     return im

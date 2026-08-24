@@ -14,6 +14,17 @@ from xy_model import (init_spins, MetropolisXY, PlotXY, EnergyXY,
 PLOTS_DIR = "PLOTS"
 SAVE_PLOTS = False  # When True (during "Run All"), plots are saved to PLOTS_DIR instead of shown.
 
+# Larger, report-friendly font sizes for every figure (axis labels, ticks, legends, subplot titles).
+plt.rcParams.update({
+    'font.size': 13,
+    'axes.titlesize': 16,
+    'axes.labelsize': 14,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
+    'legend.fontsize': 12,
+    'legend.title_fontsize': 12,
+})
+
 def finish_plot(figs_with_names):
     """Saves figures to PLOTS_DIR (high-res PNG) if SAVE_PLOTS is on, otherwise shows them as before."""
     if SAVE_PLOTS:
@@ -41,16 +52,19 @@ def simulate_thermal_states():
     T_high = 10.0
     print(f"Running High Temp (T={T_high})...")
     lattice_high = MetropolisXY(initial_lattice, n_theta, 1.0/T_high, J, numIters)
-    fig_high = PlotXY(lattice_high, title=f"High Temp Disordered State (T={T_high})")
+    fig_high = PlotXY(lattice_high)
 
     T_low = 0.02
     print(f"Running Low Temp (T={T_low})...")
     lattice_low = MetropolisXY(initial_lattice, n_theta, 1.0/T_low, J, numIters)
-    fig_low = PlotXY(lattice_low, title=f"Low Temp Quasi-Ordered State (T={T_low})")
+    fig_low = PlotXY(lattice_low)
 
     end_time = time.time()
     print(f"\nTask 1.4 completed in {end_time - start_time:.2f} seconds.")
-    finish_plot([(fig_high, "Task1.4_HighTemp_T10.0"), (fig_low, "Task1.4_LowTemp_T0.02")])
+    finish_plot([
+        (fig_high, "SpinConfiguration_Disordered_HighTemperature_T10.0"),
+        (fig_low, "SpinConfiguration_QuasiOrdered_LowTemperature_T0.02"),
+    ])
 
 def run_thermodynamic_simulation():
     """TASK 2.5: Full thermodynamic simulation. Quenches directly to T=0.02."""
@@ -95,24 +109,23 @@ def run_thermodynamic_simulation():
     print(f"\nTask 2.5 completed in {end_time - start_time:.2f} seconds.")
     
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle(f"XY Model Thermodynamics (L={L})", fontsize=16)
     axs[0, 0].plot(T_array, E_avg_array, 'o-', color='blue')
-    axs[0, 0].set(title='Average Energy vs Temp', xlabel='T', ylabel='<E>/N')
+    axs[0, 0].set(title='Average Energy vs. Temperature', xlabel='T', ylabel='<E>/N')
     axs[0, 0].grid(True)
     axs[0, 1].plot(T_array, M_avg_array, 'o-', color='red')
-    axs[0, 1].set(title='Squared Magnetization vs Temp', xlabel='T', ylabel='<M^2>/N^2')
+    axs[0, 1].set(title='Squared Magnetization vs. Temperature', xlabel='T', ylabel='<M^2>/N^2')
     axs[0, 1].grid(True)
     axs[1, 0].plot(T_array[:-1], Cv_array, 's-', color='green')
-    axs[1, 0].set(title='Heat Capacity vs Temp', xlabel='T', ylabel='C_v')
+    axs[1, 0].set(title='Heat Capacity vs. Temperature', xlabel='T', ylabel='C_v')
     axs[1, 0].grid(True)
     r_values = np.arange(1, len(C_r_low) + 1)
     axs[1, 1].plot(r_values, C_r_low, 'o-', label=f'T={T_array[0]:.2f}', color='cyan')
     axs[1, 1].plot(r_values, C_r_high, 's-', label=f'T={T_array[-1]:.2f}', color='magenta')
-    axs[1, 1].set(title='Spatial Correlation C(r)', xlabel='Distance (r)', ylabel='C(r)')
+    axs[1, 1].set(title='Spin-Spin Correlation Function', xlabel='Distance (r)', ylabel='C(r)')
     axs[1, 1].legend()
     axs[1, 1].grid(True)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    finish_plot([(fig, "Task2.5_Thermodynamics")])
+    plt.tight_layout()
+    finish_plot([(fig, "ThermodynamicObservables_StandardMetropolis_L64")])
 
 def visualize_vortices():
     """TASK 3.3: Analyzes and visualizes vortices at three temperatures."""
@@ -124,24 +137,23 @@ def visualize_vortices():
     print(f"\n--- Starting Task 3.3: Ultimate Vortex Analysis (L={L}) ---")
     start_time = time.time()
     temps = [0.02, 0.95, 10.0]
-    titles = ["Low Temp (T=0.02)\nTrapped Vortices at Boundaries", 
-              "Transition (T=0.95)\nThermal Pairs Breaking", 
-              "High Temp (T=10.0)\nFree Vortex Plasma"]
+    titles = ["Low Temperature (T=0.02)\nTrapped Vortices at Boundaries",
+              "Near the Transition (T=0.95)\nThermal Pairs Breaking",
+              "High Temperature (T=10.0)\nFree Vortex Plasma"]
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-    fig.suptitle("Task 3.3: Vortex Evolution Across Temperatures", fontsize=18)
     initial_lattice = init_spins(L, n_theta)
-    
+
     for ax, T, title in zip(axes, temps, titles):
         print(f"Thermalizing at T={T} with {numIters} iters...")
         lattice = MetropolisXY(initial_lattice, n_theta, 1.0/T, J, numIters)
         V, NumVort = VortXY(lattice)
         print(f" -> Found {NumVort:.0f} vortices.")
-        im = VortPlotXY_ax(lattice, V, ax, title=f"{title}\nVortices: {NumVort:.0f}")
-        
+        im = VortPlotXY_ax(lattice, V, ax, title=f"{title}\nVortex Count: {NumVort:.0f}")
+
     cbar = fig.colorbar(im, ax=axes.ravel().tolist(), fraction=0.015, pad=0.04)
     cbar.set_label('Spin Angle (Radians)')
     print(f"\nTask 3.3 completed in {time.time() - start_time:.2f} seconds.")
-    finish_plot([(fig, "Task3.3_VortexEvolution")])
+    finish_plot([(fig, "VortexEvolution_AcrossTemperature_L64")])
 
 def simulate_vortex_density():
     """TASK 3.4: Calculates and plots the vortex density."""
@@ -175,14 +187,13 @@ def simulate_vortex_density():
         
     fig = plt.figure(figsize=(8, 6))
     plt.semilogy(1.0/T_array, np.array(density_list), 'o-', color='purple')
-    plt.title('Task 3.4: Vortex Density vs 1 / T')
     plt.xlabel('Inverse Temperature (1 / k_B T)')
     plt.ylabel('Vortex Density (<NumVort> / N)')
     plt.grid(True, which="both", ls="--", alpha=0.7)
     plt.gca().invert_xaxis()
     plt.tight_layout()
     print(f"\nTask 3.4 completed in {time.time() - start_time:.2f} seconds.")
-    finish_plot([(fig, "Task3.4_VortexDensity")])
+    finish_plot([(fig, "VortexDensity_vs_InverseTemperature_StandardMetropolis_L64")])
 
 def run_fast_thermodynamics():
     """BONUS 1: Fast Vectorized Thermodynamics."""
@@ -218,33 +229,33 @@ def run_fast_thermodynamics():
         elif i == numPoints - 1: C_r_high = CorrXY(lattice)
             
     end_time = time.time()
+    print(f"BONUS 1 completed in {end_time - start_time:.2f} seconds.")
     E_avg_array, M_avg_array = np.array(E_avg_list), np.array(M_avg_list)
     Cv_array = CvXY(E_avg_array, T_array)
-    
+
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle(f"FAST Vectorized Thermodynamics (Time: {end_time - start_time:.2f}s)", fontsize=16)
-    
+
     axs[0, 0].plot(T_array, E_avg_array, 'o-', color='blue')
-    axs[0, 0].set(title='Average Energy vs Temp', xlabel='T', ylabel='<E>/N')
+    axs[0, 0].set(title='Average Energy vs. Temperature', xlabel='T', ylabel='<E>/N')
     axs[0, 0].grid(True)
-    
+
     axs[0, 1].plot(T_array, M_avg_array, 'o-', color='red')
-    axs[0, 1].set(title='Squared Magnetization vs Temp', xlabel='T', ylabel='<M^2>/N^2')
+    axs[0, 1].set(title='Squared Magnetization vs. Temperature', xlabel='T', ylabel='<M^2>/N^2')
     axs[0, 1].grid(True)
-    
+
     axs[1, 0].plot(T_array[:-1], Cv_array, 's-', color='green')
-    axs[1, 0].set(title='Heat Capacity vs Temp', xlabel='T', ylabel='C_v')
+    axs[1, 0].set(title='Heat Capacity vs. Temperature', xlabel='T', ylabel='C_v')
     axs[1, 0].grid(True)
-    
+
     r_values = np.arange(1, len(C_r_low) + 1)
     axs[1, 1].plot(r_values, C_r_low, 'o-', label=f'T={T_array[0]:.2f}', color='cyan')
     axs[1, 1].plot(r_values, C_r_high, 's-', label=f'T={T_array[-1]:.2f}', color='magenta')
-    axs[1, 1].set(title='Spatial Correlation C(r)', xlabel='Distance (r)', ylabel='C(r)')
+    axs[1, 1].set(title='Spin-Spin Correlation Function', xlabel='Distance (r)', ylabel='C(r)')
     axs[1, 1].legend()
     axs[1, 1].grid(True)
 
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    finish_plot([(fig, "Bonus1_FastThermodynamics")])
+    plt.tight_layout()
+    finish_plot([(fig, "ThermodynamicObservables_VectorizedMetropolis_L64")])
 
 def clean_correlation_array(c_array, threshold=1e-3):
     """Utility to cleanly cut off noisy exponential drops."""
@@ -307,67 +318,66 @@ def run_wolff_thermodynamics():
             lattice_high = lattice.copy()
             
     total_time = time.time() - start_time
-    
+    print(f"PERFECT HYBRID Thermodynamics completed in {total_time:.2f} seconds.")
+
     # ---------------------------------------------------------
     # Figure 1: Visualizations (2x3 Grid)
     # ---------------------------------------------------------
     print("Generating Visualizations...")
     vis_temps = [T_array[0], T_array[mid_index], T_array[-1]]
     vis_lattices = [lattice_low, lattice_mid, lattice_high]
-    titles = [f"Low Temp (T={vis_temps[0]:.2f})", f"Mid Temp (T={vis_temps[1]:.2f})", f"High Temp (T={vis_temps[2]:.2f})"]
-    
+    temp_labels = [f"T = {vis_temps[0]:.2f}", f"T = {vis_temps[1]:.2f}", f"T = {vis_temps[2]:.2f}"]
+
     fig_vis, axes_vis = plt.subplots(2, 3, figsize=(18, 11))
-    fig_vis.suptitle("Wolff Spin Configurations (Top: Clean, Bottom: Vortices)", fontsize=18)
-    for col, (temp_lat, title) in enumerate(zip(vis_lattices, titles)):
+    for col, (temp_lat, temp_label) in enumerate(zip(vis_lattices, temp_labels)):
         V, NumVort = VortXY(temp_lat)
-        VortPlotXY_ax(temp_lat, V, axes_vis[0, col], title=title, show_vortices=False)
-        im = VortPlotXY_ax(temp_lat, V, axes_vis[1, col], title=f"Vortices Count: {NumVort:.0f}", show_vortices=True)
+        VortPlotXY_ax(temp_lat, V, axes_vis[0, col], title=f"Spin Configuration, {temp_label}", show_vortices=False)
+        im = VortPlotXY_ax(temp_lat, V, axes_vis[1, col], title=f"Vortex Positions, {temp_label} (Count = {NumVort:.0f})", show_vortices=True)
     fig_vis.colorbar(im, ax=axes_vis.ravel().tolist(), fraction=0.015, pad=0.04)
-    
+
     # ---------------------------------------------------------
     # Figure 2: Thermodynamics 2x2 Grid (Restored labels)
     # ---------------------------------------------------------
     fig_th, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig_th.suptitle(f"HYBRID WOLFF Thermodynamics (Time: {total_time:.2f}s)", fontsize=16)
-    
+
     # Energy
     axs[0, 0].plot(T_array, np.array(E_avg_list), 'o-', color='blue')
-    axs[0, 0].set(title='Average Energy vs Temp', xlabel='T', ylabel='<E>/N')
+    axs[0, 0].set(title='Average Energy vs. Temperature', xlabel='T', ylabel='<E>/N')
     axs[0, 0].grid(True)
-    
+
     # Magnetization
     axs[0, 1].plot(T_array, np.array(M_avg_list), 'o-', color='red')
-    axs[0, 1].set(title='Squared Magnetization vs Temp', xlabel='T', ylabel='<M^2>/N^2')
+    axs[0, 1].set(title='Squared Magnetization vs. Temperature', xlabel='T', ylabel='<M^2>/N^2')
     axs[0, 1].grid(True)
-    
+
     # Heat Capacity
     axs[1, 0].plot(T_array[:-1], CvXY(np.array(E_avg_list), T_array), 's-', color='green')
-    axs[1, 0].set(title='Heat Capacity vs Temp', xlabel='T', ylabel='C_v')
+    axs[1, 0].set(title='Heat Capacity vs. Temperature', xlabel='T', ylabel='C_v')
     axs[1, 0].grid(True)
-    
+
     # Log-Log Correlation (Cleaned noise)
     r_vals = np.arange(1, len(C_r_low) + 1)
-    
+
     axs[1, 1].loglog(r_vals, C_r_low, 'o-', label=f'T={T_array[0]:.2f}', color='cyan')
     axs[1, 1].loglog(r_vals, C_r_mid, '^-', label=f'T={T_array[mid_index]:.2f}', color='orange')
-    
+
     # Clean exponential drop
     cutoff = clean_correlation_array(C_r_high, threshold=1e-3)
     axs[1, 1].loglog(r_vals[:cutoff], C_r_high[:cutoff], 's-', label=f'T={T_array[-1]:.2f} (Exp Drop)', color='magenta')
-    
+
     # Fit line
     fit_r = r_vals[:15]
     fit_c = C_r_mid[:15]
     coeffs = np.polyfit(np.log(fit_r), np.log(fit_c), 1)
     fit_line = np.exp(coeffs[1]) * (fit_r ** coeffs[0])
     axs[1, 1].loglog(fit_r, fit_line, 'k--', linewidth=2, label=rf'Fit R <= 15 ($\eta$={-coeffs[0]:.3f})')
-    
-    axs[1, 1].set(title='Spatial Correlation C(r) [Log-Log]', xlabel='Distance r (log)', ylabel='C(r) (log)')
+
+    axs[1, 1].set(title='Spin-Spin Correlation Function (Log-Log)', xlabel='Distance r (log)', ylabel='C(r) (log)')
     axs[1, 1].legend()
     axs[1, 1].grid(True, which="both", ls="--", alpha=0.5)
-    
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    
+
+    plt.tight_layout()
+
     # ---------------------------------------------------------
     # Figure 3: Separate Vortex Density Graph
     # ---------------------------------------------------------
@@ -375,9 +385,8 @@ def run_wolff_thermodynamics():
     density_arr = np.array(density_list)
     # Replace exactly 0 with NaN so the semilogy plot drops the line cleanly instead of failing
     density_clean = np.where(density_arr == 0, np.nan, density_arr)
-    
+
     plt.semilogy(1.0/T_array, density_clean, 'o-', color='purple')
-    plt.title('Wolff Algorithm: Vortex Density vs 1/T')
     plt.xlabel('Inverse Temperature (1 / k_B T)')
     plt.ylabel('Vortex Density (<NumVort> / N)')
     plt.gca().invert_xaxis()
@@ -385,9 +394,9 @@ def run_wolff_thermodynamics():
     plt.tight_layout()
 
     finish_plot([
-        (fig_vis, "Bonus2_WolffConfigurations"),
-        (fig_th, "Bonus2_WolffThermodynamics"),
-        (fig_vort, "Bonus2_WolffVortexDensity"),
+        (fig_vis, "SpinAndVortexConfigurations_WolffCluster_L64"),
+        (fig_th, "ThermodynamicObservables_WolffCluster_L64"),
+        (fig_vort, "VortexDensity_vs_InverseTemperature_WolffCluster_L64"),
     ])
 
 def run_large_scale_demo():
@@ -445,52 +454,51 @@ def run_large_scale_demo():
             lattice_high = lattice.copy()
             
     total_time = time.time() - start_time
-    
+    print(f"LARGE-SCALE Demo completed in {total_time:.2f} seconds.")
+
     # ---------------------------------------------------------
     # Figure 1: Visualizations (2x3 Grid) - Arrows disabled for performance
     # ---------------------------------------------------------
     print("Generating Large Scale Visualizations...")
     vis_temps = [T_array[0], T_array[mid_index], T_array[-1]]
     vis_lattices = [lattice_low, lattice_mid, lattice_high]
-    titles = [f"Low Temp (T={vis_temps[0]:.2f})", f"Mid Temp (T={vis_temps[1]:.2f})", f"High Temp (T={vis_temps[2]:.2f})"]
-    
+    temp_labels = [f"T = {vis_temps[0]:.2f}", f"T = {vis_temps[1]:.2f}", f"T = {vis_temps[2]:.2f}"]
+
     fig_vis, axes_vis = plt.subplots(2, 3, figsize=(18, 11))
-    fig_vis.suptitle(f"Large Scale 256x256 (Top: Clean, Bottom: Vortices)", fontsize=18)
-    for col, (temp_lat, title) in enumerate(zip(vis_lattices, titles)):
+    for col, (temp_lat, temp_label) in enumerate(zip(vis_lattices, temp_labels)):
         V, NumVort = VortXY(temp_lat)
-        VortPlotXY_ax(temp_lat, V, axes_vis[0, col], title=title, show_vortices=False, show_arrows=False)
-        im = VortPlotXY_ax(temp_lat, V, axes_vis[1, col], title=f"Vortices Count: {NumVort:.0f}", show_vortices=True, show_arrows=False)
+        VortPlotXY_ax(temp_lat, V, axes_vis[0, col], title=f"Spin Configuration, {temp_label}", show_vortices=False, show_arrows=False)
+        im = VortPlotXY_ax(temp_lat, V, axes_vis[1, col], title=f"Vortex Positions, {temp_label} (Count = {NumVort:.0f})", show_vortices=True, show_arrows=False)
     fig_vis.colorbar(im, ax=axes_vis.ravel().tolist(), fraction=0.015, pad=0.04)
 
     # ---------------------------------------------------------
-    # Figure 2: Thermodynamics 2x2 Grid 
+    # Figure 2: Thermodynamics 2x2 Grid
     # ---------------------------------------------------------
     fig_th, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig_th.suptitle(f"LARGE SCALE 256x256 Thermodynamics (Time: {total_time:.2f}s)", fontsize=16)
-    
+
     axs[0, 0].plot(T_array, np.array(E_avg_list), 'o-', color='blue')
-    axs[0, 0].set(title='Average Energy vs Temp', xlabel='T', ylabel='<E>/N')
+    axs[0, 0].set(title='Average Energy vs. Temperature', xlabel='T', ylabel='<E>/N')
     axs[0, 0].grid(True)
-    
+
     axs[0, 1].plot(T_array, np.array(M_avg_list), 'o-', color='red')
-    axs[0, 1].set(title='Squared Magnetization vs Temp', xlabel='T', ylabel='<M^2>/N^2')
+    axs[0, 1].set(title='Squared Magnetization vs. Temperature', xlabel='T', ylabel='<M^2>/N^2')
     axs[0, 1].grid(True)
-    
+
     axs[1, 0].plot(T_array[:-1], CvXY(np.array(E_avg_list), T_array), 's-', color='green')
-    axs[1, 0].set(title='Heat Capacity vs Temp', xlabel='T', ylabel='C_v')
+    axs[1, 0].set(title='Heat Capacity vs. Temperature', xlabel='T', ylabel='C_v')
     axs[1, 0].grid(True)
-    
+
     r_vals = np.arange(1, len(C_r_low) + 1)
     axs[1, 1].loglog(r_vals, C_r_low, 'o-', label=f'T={T_array[0]:.2f}', color='cyan')
     axs[1, 1].loglog(r_vals, C_r_mid, '^-', label=f'T={T_array[mid_index]:.2f}', color='orange')
-    
+
     cutoff = clean_correlation_array(C_r_high, threshold=1e-3)
     axs[1, 1].loglog(r_vals[:cutoff], C_r_high[:cutoff], 's-', label=f'T={T_array[-1]:.2f} (Exp Drop)', color='magenta')
-    
-    axs[1, 1].set(title='Spatial Correlation C(r) [Log-Log]', xlabel='Distance r (log)', ylabel='C(r) (log)')
+
+    axs[1, 1].set(title='Spin-Spin Correlation Function (Log-Log)', xlabel='Distance r (log)', ylabel='C(r) (log)')
     axs[1, 1].legend()
     axs[1, 1].grid(True, which="both", ls="--", alpha=0.5)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.tight_layout()
 
     # ---------------------------------------------------------
     # Figure 3: Separate Vortex Density Graph
@@ -498,9 +506,8 @@ def run_large_scale_demo():
     fig_vort = plt.figure(figsize=(8, 6))
     density_arr = np.array(density_list)
     density_clean = np.where(density_arr == 0, np.nan, density_arr)
-    
+
     plt.semilogy(1.0/T_array, density_clean, 'o-', color='purple')
-    plt.title('Large Scale: Vortex Density vs 1/T')
     plt.xlabel('Inverse Temperature (1 / k_B T)')
     plt.ylabel('Vortex Density (<NumVort> / N)')
     plt.gca().invert_xaxis()
@@ -508,9 +515,9 @@ def run_large_scale_demo():
     plt.tight_layout()
 
     finish_plot([
-        (fig_vis, "Bonus3_LargeScaleConfigurations"),
-        (fig_th, "Bonus3_LargeScaleThermodynamics"),
-        (fig_vort, "Bonus3_LargeScaleVortexDensity"),
+        (fig_vis, "SpinAndVortexConfigurations_WolffCluster_L256"),
+        (fig_th, "ThermodynamicObservables_WolffCluster_L256"),
+        (fig_vort, "VortexDensity_vs_InverseTemperature_WolffCluster_L256"),
     ])
 
 def run_all_tasks():
